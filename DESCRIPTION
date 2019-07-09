@@ -1,0 +1,10 @@
+Package: flukeclimatemse
+Type: Package
+Title: Run Climate Fluke MSE 
+Version: 0.1.0
+Author: Who wrote it
+Maintainer: The package maintainer <ahart2@umassd.edu>
+Description: This package contains functions which support and execute different modeling components for a U.S. Summer Flounder (fluke) Management Strategy Evaluation (MSE) looking at recreational fisheries management outcomes in the context of climate driven population movements.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
