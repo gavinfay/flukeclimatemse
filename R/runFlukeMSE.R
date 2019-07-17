@@ -15,5 +15,12 @@
 #' @examples
 #'
 runFlukeMSE <- function(){
+  # Set up storage
+  StoreCommercialQuota <- rep(NA, Nproj)
+  StoreAreaQuotas # ??? figure out how to specify size to match mngmt
+
+  # Need something like the last 2 lines to save quota from mngmtprocedure() output
+  StoreCommercialQuota[iYear] <- quotaOutput$commercialQuota
+  StoreAreaQuotas[iYear,] <- quotaOutput$areaQuotas
 
 }
