@@ -20,9 +20,13 @@
 #' @examples
 #'
 
-stockassess <- function(){
+stockassess <- function(Rec_catch = NULL,
+                        Rec_disc = NULL,
+                        Com_catdisc = NULL,
+                        Survey_obs = NULL,
+                        Survey_SD = NULL){
   # setwd("/Users/arhart/Downloads")
-  setwd("/Users/arhart/Downloads") # ??? this won't work in an R package, I need a way of referencing a cpp script or dll but I haven't figured out how to do this yet
+  setwd("/Users/ahart2/Research/flukeclimatemse/R") # ??? this won't work in an R package, I need a way of referencing a cpp script or dll but I haven't figured out how to do this yet
 
   require(TMB) # ??? this needs to be added to the list of dependent packages
 
@@ -107,13 +111,21 @@ stockassess <- function(){
   rec_disc_pred <- Model$report()$rec_disc_pred
   com_catdisc_pred <- Model$report()$com_catdisc_pred
   survival <- Model$report()$survival
+  # Get parameter estimates
+  h_steep <- c(rep$value[1], rep$sd[1])
+  Bzero <- c(rep$value[2], rep$sd[2])
+  Fvals <- cbind(rep$value[3:length(rep$value)], rep$sd[3:length(rep$sd)])
+  colnames(Fvals) <- c("Value", "SD")
 
   return(list(biomass = biomass,
               recruitment = recruitment,
               rec_catch_pred = rec_catch_pred,
               rec_disc_pred = rec_disc_pred,
               com_catdisc_pred = com_catdisc_pred,
-              survival = survival))
+              survival = survival,
+              h_steep = h_steep,
+              Bzero = Bzero,
+              Fvals = Fvals))
 }
 
 
@@ -122,13 +134,13 @@ stockassess <- function(){
 # Example data
 Nyear <- 30 # UPDATE ??? # used here to specify changing length of catch/biomass timeseries, calculated in .cpp file
 # Fleet catch & discards
-fluke_rec_catch_obs <- read.csv("HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational catch
-fluke_rec_disc_obs <- read.csv("HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational discards
-fluke_com_catdisc_obs <- read.csv("HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Combined commercial catch and discards
+fluke_rec_catch_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational catch
+fluke_rec_disc_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational discards
+fluke_com_catdisc_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Combined commercial catch and discards
 # Survey abundance observations and standard deviations
-fluke_survey_obs <- read.csv("HWK4.csv",skip=32, nrow=6, head=F)[,2]
-fluke_survey_SD <- read.csv("HWK4.csv",skip=32, nrow=6, head=F)[,3]
+fluke_survey_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv",skip=32, nrow=6, head=F)[,2]
+fluke_survey_SD <- read.csv("/Users/arhart/Downloads/HWK4.csv",skip=32, nrow=6, head=F)[,3]
 
 
-
+stockassess(Rec_catch = fluke_rec_catch_obs, Rec_disc = fluke_rec_disc_obs, Com_catdisc = fluke_com_catdisc_obs, Survey_obs = fluke_survey_obs, Survey_SD = fluke_survey_SD)
 

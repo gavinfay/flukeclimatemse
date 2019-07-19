@@ -17,23 +17,18 @@ Type objective_function<Type>::operator() ()
   DATA_VECTOR(rec_catch_obs); // Recreational catch observed numbers
   DATA_VECTOR(rec_disc_obs); // Recreational discards observed numbers
   DATA_VECTOR(com_catdisc_obs); // Commercial combined catch & discards observed numbers
-  // Survey abundance observations & std dev
+    // Survey abundance observations & std dev
   DATA_VECTOR(survey_obs); 
   DATA_VECTOR(survey_SD);  
   DATA_INTEGER(survey_length); // Length of survey (# years survey conducted) ??? may need to be altered for individual surveys
   DATA_IVECTOR(survey_yr); // Survey years ??? see above
-  // Other data
+    // Other data
   DATA_SCALAR(w_dat); // weight gain parameter value (not estimated)
   DATA_SCALAR(M_dat); // Natural mortality rate
   DATA_SCALAR(rho); //Prow = rho
-  // For projections
+    // For projections
   DATA_INTEGER(Nproj); // Number of projection years
   DATA_SCALAR(Ctarget); // Catch target
-  
-  
-  
-  // DATA_VECTOR(catch_yr); // Catch years
-  // DATA_SCALAR(catch_proj); // Log F used in projection period, set to if Nproj = 0 this will not be used
   
 
   ///// Parameter section /////
@@ -49,12 +44,12 @@ Type objective_function<Type>::operator() ()
 
   // Local variables
   int Nyear; // Number of data years
-  Nyear = rec_catch_obs.size(); // THIS SHOULD BE 30!!!!!! for HW4 exmple ??? doulble check
+  Nyear = rec_catch_obs.size(); 
 
   int TotalYears; // Determine total number of years = number of data years + number of projection years
-  TotalYears = Nyear + Nproj + 1;
+  TotalYears = Nyear + Nproj;
 
-  vector<Type> biomass(TotalYears+3); // Biomass prediction storage vector
+  vector<Type> biomass(TotalYears + 1); // Biomass prediction storage vector + 1 since projected 1 year into the future
   vector<Type> recruitment(TotalYears); // Recruitment storage vector
   vector<Type> survival(TotalYears); // Survival prediction storage vector
   vector<Type> rec_catch_pred(TotalYears); // Recreational catch prediction storage vector = CatHat in Andre's code
@@ -67,7 +62,10 @@ Type objective_function<Type>::operator() ()
   Type Prior; 
   Prior = 0.5*square(Logith_steep-0.5108256)/square(2); // Prior for steepness: logit((h-0.2)/0.8) ~ N(0.51,2^2) 
 
-  Type obj_fun = 0; // NegativeLogLikelihood initialized at zero
+
+  // Objective function
+  Type obj_fun;
+  obj_fun = 0; // NegativeLogLikelihood initialized at zero
   
 
   // Equilibrium starting conditions   
@@ -141,7 +139,7 @@ Type objective_function<Type>::operator() ()
   for(int iyear=0; iyear<survey_length; iyear++){
     temp_survey_yr = survey_yr(iyear);
     // Biomass likelihood component
-    obj_fun += 0.5*square(biomass(temp_survey_yr) - survey_obs(iyear))/square(survey_SD(iyear)); // (est-obs)^2/SD^2 
+    obj_fun += 0.5*square(biomass(temp_survey_yr) - survey_obs(iyear))/square(survey_SD(iyear)); // (est-obs)^2/SD^2 ??? is this lognormal?
   }
   // ??? need to add surveys here ????????????????????????????????????
 
@@ -194,6 +192,6 @@ Type objective_function<Type>::operator() ()
   ADREPORT(h_steep); // steepness, note: this has been retransformed from Logith_steep
   ADREPORT(Bzero); // Bzero = K = biomass at equilibrium
   ADREPORT(Fval); // Vector of fishing mortalities for projections 
-  
+
   return(obj_fun);
 }
