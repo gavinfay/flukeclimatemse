@@ -30,7 +30,7 @@ stockassess <- function(){
   Survey_yr <- seq(1:length(Survey_obs)) # Could make this a parameter if survey has gaps (shorter than the catch timeseries)
   Survey_length <- length(Survey_obs)
   W_dat <- 0.5
-  M_dat <- 0.2
+  M_dat <- 0.25
   Rho <- 0.995
   Nproj <- 0 # project forward 1 year, not currently used
   Ctarget <- 0 # no fishing in projection, not currently used
