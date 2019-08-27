@@ -16,7 +16,7 @@
 #'
 #' @family Management procedure functions
 #'
-#' @examples
+#' @examples #??? finish examples for all possible decision areas
 #' # Specify independent states as decision areas
 #' decisionarea(DecisionArea = "StatesIndependent", NStates = 9)
 #' # Specify CT/NY and DE/MD/VA as combined decision areas with remaining states as indpendent decision areas
