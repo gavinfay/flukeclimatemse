@@ -1,9 +1,9 @@
-// Stock Assessment Model: Deriso delay-difference model 
+// Stock Assessment Model: Deriso delay-difference model
 // To do:
    // search ??? for questions/concerns
    // test with fluke data
 
-#include <TMB.hpp>
+#include <TMB.hpp> // Maybe this needs .h extension for Rcpp ???
 
 // Optional function which square the value provided
 template <class Type> Type square(Type x){return x*x;}
@@ -12,16 +12,19 @@ template <class Type> Type square(Type x){return x*x;}
 template <class Type>
 Type objective_function<Type>::operator() ()
 {
-
   ///// Data section /////
-  DATA_VECTOR(rec_catch_obs); // Recreational catch observed numbers
-  DATA_VECTOR(rec_disc_obs); // Recreational discards observed numbers
-  DATA_VECTOR(com_catdisc_obs); // Commercial combined catch & discards observed numbers
+    // Catch observations, vectors must be of equal lengths
+  DATA_VECTOR(rec_catch_obs); // Recreational catch observed numbers over time (summed over states)
+  DATA_VECTOR(rec_disc_obs); // Recreational discards observed numbers over time (summed over states)
+  DATA_VECTOR(com_catdisc_obs); // Commercial combined catch & discards observed numbers over time (summed over states)
     // Survey abundance observations & std dev
-  DATA_VECTOR(survey_obs); 
-  DATA_VECTOR(survey_SD);  
+  DATA_VECTOR(survey_obs);
+  DATA_VECTOR(survey_SD);
   DATA_INTEGER(survey_length); // Length of survey (# years survey conducted) ??? may need to be altered for individual surveys
   DATA_IVECTOR(survey_yr); // Survey years ??? see above
+    // Recruitment observations
+  DATA_VECTOR(R_obs);
+
     // Other data
   DATA_SCALAR(w_dat); // weight gain parameter value (not estimated)
   DATA_SCALAR(M_dat); // Natural mortality rate
@@ -29,22 +32,24 @@ Type objective_function<Type>::operator() ()
     // For projections
   DATA_INTEGER(Nproj); // Number of projection years
   DATA_SCALAR(Ctarget); // Catch target
-  
+
 
   ///// Parameter section /////
   PARAMETER(dummy); // Include dummy variable to debug code without full estimation of likelihood
-  PARAMETER(Logith_steep); // Logit transformed steepness parameter (h)
-  PARAMETER(Bzero); // Bzero = K = biomass at equilibrium
-  PARAMETER_VECTOR(Fval); // Vector of fishing mortalities for projections 
-    
+    // Estimated starting conditions
+  PARAMETER_VECTOR(Bstartval); // Vector of biomass estimated in the first 2 years rather than assuming population is unfished at start of timeseries
+  PARAMETER(Fstartval); // Fstartval is estimated as the unobserved fishing rate in the year before observed timeseries begins
+    // Fishing mortality
+  PARAMETER_VECTOR(Fvals); // Vector of fishing mortalities for years 1 to Nyear -1 accounting for total recreational catch & discards and commercial catch & discards
+    // Recruitment
+  PARAMETER(R_mean); // Mean recruitment
+  PARAMETER(sigmaR); // Annual recruitment deviations
+  PARAMETER_VECTOR(R_randEffect); // Recruitment random effect
 
-  // Retransform variables
-  Type h_steep; 
-  h_steep = 0.2+0.8*exp(Logith_steep)/(1+exp(Logith_steep));
 
   // Local variables
   int Nyear; // Number of data years
-  Nyear = rec_catch_obs.size(); 
+  Nyear = rec_catch_obs.size();
 
   int TotalYears; // Determine total number of years = number of data years + number of projection years
   TotalYears = Nyear + Nproj;
@@ -52,63 +57,60 @@ Type objective_function<Type>::operator() ()
   vector<Type> biomass(TotalYears + 1); // Biomass prediction storage vector + 1 since projected 1 year into the future
   vector<Type> recruitment(TotalYears); // Recruitment storage vector
   vector<Type> survival(TotalYears); // Survival prediction storage vector
-  vector<Type> rec_catch_pred(TotalYears); // Recreational catch prediction storage vector = CatHat in Andre's code
-  vector<Type> rec_disc_pred(TotalYears); // Recreational discards prediction storage vector
-  vector<Type> com_catdisc_pred(TotalYears); // Commercial combined catch and discard prediction storage vector
-  
-  Type Rzero = 0; // Initial value for Rzero
-  Type Term1, Term2, Term3; // temporary variables for biomass prediction equation terms
-  int Lag_tplusone,Lag_t; // Indexing integers for recruitment lag in timestep t and t+1 in 
-  Type Prior; 
-  Prior = 0.5*square(Logith_steep-0.5108256)/square(2); // Prior for steepness: logit((h-0.2)/0.8) ~ N(0.51,2^2) 
+  vector<Type> catch_pred(TotalYears); // Total catch prediction (combined recretional catch & discards and commercial catch & discards) storage vector = CatHat in Andre's code
 
+  vector<Type> catch_obs(TotalYears); // Total observed catch summed across (recreational catch & discards and commercial catch & discards from data input)
+  catch_obs = rec_catch_obs + rec_disc_obs + com_catdisc_obs; // element wise sum of catch observations
+
+  Type Term1, Term2, Term3; // temporary variables for biomass prediction equation terms
+  int Lag_tplusone,Lag_t; // Indexing integers for recruitment lag in timestep t and t+1 in
 
   // Objective function
   Type obj_fun;
   obj_fun = 0; // NegativeLogLikelihood initialized at zero
-  
-
-  // Equilibrium starting conditions   
-  Rzero = (Bzero - (1.0 + rho)*exp(-1.0*M_dat)*Bzero + rho*exp(-2.0*M_dat)*Bzero)/(1.0 - rho*w_dat*exp(-1.0*M_dat)); 
 
 
-
-
- 
   /////////////// Fit to data ////////////////////////////////////////////////////////////////////////////////////////////
   ///// Years 1 and 2 are special because of delay /////
   // Year 1
-  biomass(0) = Bzero;
-  survival(0) = exp(-1.0*M_dat); // survival rate in first year = exp(-M), only M since no catch in this year
-  recruitment(0) = (4*h_steep*Rzero*biomass(0)/Bzero)/((1-h_steep) + (5*h_steep-1)*biomass(0)/Bzero); 
-    // Recreational catch prediction
-    rec_catch_pred(0) = 0; // No recreational catch in year 1
-    Prior += square((rec_catch_pred(0) - rec_catch_obs(0))/(2.0*0.2*0.2)); // Recreational catch likelihood component, ??? is 0.2 correct std dev
-    // Recreational discards prediction
-    rec_disc_pred(0) = 0; // No recreational discards in year 1
-    Prior += square((rec_disc_pred(0) - rec_disc_obs(0))/(2.0*0.2*0.2)); // Recreational discards likelihood component, ??? is 0.2 correct
-    // Combined commercial catch and discards prediction
-    com_catdisc_pred(0) = 0; // No commercial catch or discards in year 1
-    Prior += square((com_catdisc_pred(0) - com_catdisc_obs(0))/(2.0*0.2*0.2)); // Commercial catch and discards likelihood component, ??? is 0.2 correct std dev
+    // Biomass
+    biomass(0) = Bstartval(0); // Estimate first year biomass
+    // Survival
+    survival(0) = exp(-1.0*M_dat)*(1-exp(Fstartval)); // survival rate after M and F, where F = Fstartval is estimated as the unobserved fishing rate in the year before observed timeseries begins
+    // Recruitment prediction & log likelihood
+    recruitment(0) = R_mean*exp(R_randEffect(0) - sigmaR*sigmaR/2); // Recruitment prediction
+    vector<Type> tempRandEffect(1);
+    tempRandEffect = R_randEffect(0);
+    vector<Type> tempsigmaR(1);
+    tempsigmaR = sigmaR; // Could maybe get away with single values for temp sigmaR and tempMean
+    vector<Type> tempMean(1);
+    tempMean  = 0.0;
+    obj_fun += dnorm(tempRandEffect,tempMean,tempsigmaR,1)[0]; // Recruitment log likelihood component, give_log = 1 returns log probability
+      // Gave error that couldn't find function definition that matched arguments when single numbers provided instead of vectors, check "type" of argument (e.g. Type, double...) & format (e.g. vector...)
+
+    // Total catch prediction & likelihood
+    catch_pred(0) = exp(Fstartval)*biomass(0);
+    obj_fun += 0.5*square(log(catch_pred(0)) - log(catch_obs(0)))/square(0.2);
 
   // Year 2 biomass
-  biomass(1) = (1 + rho)*exp(-1.0*M_dat)*(biomass(0) - rec_catch_pred(0)) - rho*exp(-2.0*M_dat)*(1.0 - (rec_catch_pred(0)/biomass(0)))*Bzero - rho*w_dat*exp(-1.0*M_dat)*(1.0 - (rec_catch_pred(0)/biomass(0)))*Rzero + Rzero; 
+    biomass(1) = Bstartval(1); // Estimate second year biomass
 
   ///// Year 2+ rec_catch_pred, com_catdisc_pred, recruitment & Year 3+ biomass /////
   for(int iyear=1; iyear<Nyear; iyear++){
-    // Recreational catch prediction & likelihood
-    rec_catch_pred(iyear) = exp(Fval(iyear-1))*biomass(iyear); // ??? Check this, how break into rec/commercial & catch/discards
-    Prior += square(rec_catch_pred(iyear) - rec_catch_obs(iyear))/(2.0*0.2*0.2); // Catch SD = 0.2 ???
-    // Recreational catch prediction & likelihood
-    rec_disc_pred(iyear) = exp(Fval(iyear-1))*biomass(iyear); // ??? Check this, how break into rec/commercial & catch/discards
-    Prior += square(rec_disc_pred(iyear) - rec_disc_obs(iyear))/(2.0*0.2*0.2); // Catch SD = 0.2 ???
-    // Combined commercial catch and discards prediction & likelihood
-    com_catdisc_pred(iyear) = exp(Fval(iyear-1))*biomass(iyear); // ??? Check this, how break into rec/commercial & catch/discards
-    Prior += square(com_catdisc_pred(iyear) - com_catdisc_obs(iyear))/(2.0*0.2*0.2); // Catch SD = 0.2 ???
-    // Survival 
-    survival(iyear) = exp(-1.0*M_dat)*(1-exp(Fval(iyear-1))); // survival rate after M and F
-    // Recruitment
-    recruitment(iyear) = (4*h_steep*Rzero*biomass(iyear)/Bzero)/((1-h_steep) + (5*h_steep-1)*biomass(iyear)/Bzero); 
+    // Total catch prediction & log likelihood
+    catch_pred(iyear) = exp(Fvals(iyear-1))*biomass(iyear); // ??? Check this, how break into rec/commercial & catch/discards
+    obj_fun += 0.5*square(log(catch_pred(iyear)) - log(catch_obs(iyear)))/square(0.2); // Catch SD = 0.2 ???
+    // Survival
+    survival(iyear) = exp(-1.0*M_dat)*(1-exp(Fvals(iyear-1))); // survival rate after M and F
+    // Recruitment prediction & log likelihood
+    recruitment(0) = R_mean*exp(R_randEffect(iyear) - sigmaR*sigmaR/2); // Recruitment prediction
+    vector<Type> temp2RandEffect(1);
+    temp2RandEffect = R_randEffect(iyear);
+    vector<Type> temp2sigmaR(1);
+    temp2sigmaR = sigmaR; // Could maybe get away with single values for temp sigmaR and tempMean
+    vector<Type> temp2Mean(1);
+    temp2Mean  = 0.0;
+    obj_fun += dnorm(temp2RandEffect,temp2Mean,temp2sigmaR,1)[0]; // Recruitment log likelihood component, give_log = 1 returns log probability
 
     // Lag indexing to recruitment
       // index for year t+1
@@ -129,29 +131,26 @@ Type objective_function<Type>::operator() ()
     Term2 = rho*survival(iyear)*survival(iyear-1)*biomass(iyear-1);
     Term3 = rho*w_dat*survival(iyear)*recruitment(Lag_t);
     biomass(iyear+1) = Term1 - Term2 - Term3 + recruitment(Lag_tplusone);
-  }  
-
-  obj_fun += Prior; // Add priors to objective function value
+  }
 
 
   ///// Survey data /////
   int temp_survey_yr; // temporary placeholder for current survey year
   for(int iyear=0; iyear<survey_length; iyear++){
     temp_survey_yr = survey_yr(iyear);
-    // Biomass likelihood component
-    obj_fun += 0.5*square(biomass(temp_survey_yr) - survey_obs(iyear))/square(survey_SD(iyear)); // (est-obs)^2/SD^2 ??? is this lognormal?
+    // Biomass log likelihood component
+    obj_fun += 0.5*square(log(biomass(temp_survey_yr)) - log(survey_obs(iyear)))/square(survey_SD(iyear));
   }
-  // ??? need to add surveys here ????????????????????????????????????
 
- // ??? I don't think I need this section since the biomass is projected to year t+1 and that is all I need to set management regulations but I am missing a piece in my model about F-based regulations/picking fishing targets
-  // ??? see if this runs with Nproj = 0
-  ///// Projections /////
+  ///// Projections ///// Needs further development if used (currently only has 1 fleet and fixed target catch)
   for(int iyear = Nyear; iyear<TotalYears-1; iyear++){
-    // Catch under constant F (Ctarget) which is fine since 
+    // Catch under constant F (Ctarget)
     // Survival from last year of data onwards
-    survival(iyear) = survival(0)*(1-Ctarget/biomass(iyear)); // (survival before fishing(=M)) * (Fishing mortality(=1-Ctarget/Bobs)) ??? Ctarget currently fixed in projection & passed to function, should this target be calculated in a different manner?
-    // Recruitment
-    recruitment(iyear) = (4*h_steep*Rzero*biomass(iyear)/Bzero)/((1-h_steep) + (5*h_steep-1)*biomass(iyear)/Bzero);
+    survival(iyear) = survival(0)*(1-Ctarget/biomass(iyear)); // (survival before fishing(=M)) * (Fishing mortality(=1-Ctarget/Bobs)), currently combined survival across fleets
+    // Recruitment projections fixed at same recruitment deviation as in last year
+    // recruitment(iyear) = rnorm(1, R_mean, R_devs(Nyear-1)); // Recruitment prediction rnorm(number pred desired, mean, std dev)
+    // ??? the temporary recruitment below used because the line above returns error I don't know how to fix
+    recruitment(0) = 1000;
 
     // Lag indexing to recruitment
       // index for year t+1
@@ -174,9 +173,7 @@ Type objective_function<Type>::operator() ()
     biomass(iyear+1) = Term1 - Term2 - Term3 + recruitment(Lag_tplusone);
   }
 
-
   obj_fun += dummy*dummy;
-
 
   ///// Report /////
   // objective function
@@ -185,13 +182,13 @@ Type objective_function<Type>::operator() ()
   REPORT(biomass);
   REPORT(recruitment);
   REPORT(survival);
-  REPORT(rec_catch_pred);
-  REPORT(rec_disc_pred);
-  REPORT(com_catdisc_pred);
+  REPORT(catch_pred);
   // estimated parameters
-  ADREPORT(h_steep); // steepness, note: this has been retransformed from Logith_steep
-  ADREPORT(Bzero); // Bzero = K = biomass at equilibrium
-  ADREPORT(Fval); // Vector of fishing mortalities for projections 
+  ADREPORT(Bstartval); // Vector of biomass estimated in the first 2 years rather than assuming population is unfished at start of timeseries
+  ADREPORT(Fstartval); // Fstartval is estimated as the unobserved fishing rate in the year before observed timeseries begins
+  ADREPORT(R_mean); // Mean recruitment
+  ADREPORT(sigmaR); // Recruitment deviation
+  ADREPORT(Fvals); // Vector of fishing mortalities for years 1 to Nyear -1, account for fishing from recreational catch & discards and commercial catch & discards
 
   return(obj_fun);
 }
