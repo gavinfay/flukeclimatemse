@@ -14,17 +14,20 @@
 #'
 #' @return An areaindex which specifies column indexing for different management decision areas. This indexing assumes that columns are in the following order by state: MA, RI, CT, NY, NJ, DE, MD, VA, NC
 #'
-#' @family management procedure functions
+#' @family Management procedure functions
 #'
 #' @examples
-#'
+#' # Specify independent states as decision areas
+#' decisionarea(DecisionArea = "StatesIndependent", NStates = 9)
+#' # Specify CT/NY and DE/MD/VA as combined decision areas with remaining states as indpendent decision areas
+#' decisionarea(DecisionArea = "CTandNYGroup", NStates = 9)
 
 decisionarea <- function(DecisionArea = NULL,
                          NStates = 9){
  if(DecisionArea == "CoastWide"){
-    areaindex <- list(c(seq(1:Nstates)))
+    areaindex <- list(c(seq(1:NStates)))
   } else if(DecisionArea == "StatesIndependent"){
-    areaindex <- as.list(seq(1:Nstates))
+    areaindex <- as.list(seq(1:NStates))
   } else if(DecisionArea == "CTandNYGroup"){
     areaindex <- list(1, 2, c(3,4), 5, c(6,7,8), 9) # MA/RI/CT&NY/NJ/DE&MD&VA/NC
   } else if(DecisionArea == "CTandNYandNJGroup"){
@@ -33,7 +36,3 @@ decisionarea <- function(DecisionArea = NULL,
 
   return(areaindex)
 }
-
-
-# # ??? test function
-# decisionarea(DecisionArea = "StatesIndependent", NStates = 9)

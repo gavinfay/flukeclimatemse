@@ -15,21 +15,21 @@
 #' @param QuotaMethod A string specifying which method should be used to allocate quota to decision areas: "Historic" or "BioAvailability", no default.
 #'      "Historic" allocates quota based on historic participation in the recreational summer flounder fishery from 1980-1988 as is done in the current (2018) stock assessment. ??? double check dates
 #'      "BioAvailability" allocates quota based on biomass availability by state as determined ??? update once availability determined correctly (not based on OM, use OM+error "survey")
-#' @param Availability A matrix of fish biomass availability by year (rows) and state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default. ??? (divide biomass by state in proportion with habitat availability = proportion of total habitat which is in that state's fishing waters) from OM, probably need to make a "SurveyAvailability" = OM availability + error for this piece
+#' @param Availability A matrix of proportional availability by year (rows) and state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default. ??? (divide biomass by state in proportion with habitat availability = proportion of total habitat which is in that state's fishing waters) from OM, probably need to make a "SurveyAvailability" = OM availability + error for this piece
 #' @param TotalQuota A number specifying the total allowable quota based on the most recent stock assessment predicted stock size, no default.
 #' @param iYear A number specifying the simulation year.
 #' @param CatchObs A matrix of catch observations by year (rows) and state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default.
 #' @param BagSize A matrix of management settings for bag size by year (rows) and state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default.
 #' @param MinSize A matrix of management settings for minimum landing size by year (rows) and state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default.
 #' @param SeasonLength A matrix of management settings for season length (days) by year (rows) and state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default.
-#' @param InputMngmt A string specifying what input controls should be adjusted selected from the following options: "AdjustBagSize", "AdjustMinSize", "AdjustSeason", "AdjustAll", "AdjustMixed", and "AdjustSpecific". No default.
+#' @param InputMngmtMethod A string specifying what input controls should be adjusted selected from the following options: "AdjustBagSize", "AdjustMinSize", "AdjustSeason", "AdjustAll", "AdjustMixed", and "AdjustSpecific". No default.
 #'      "AdjustBagSize" Specifies that only bag size should be adjusted to alter recreational catch, minimum landing size and season length remain unchanged throughout simulated projection.
 #'      "AdjustMinSize" Specifies that only minimum landing size should be adjusted to alter recreational catch, bag size and season length remain unchanged throughout simulated projection.
 #'      "AdjustSeason" Specifies that only season length should be adjusted to alter recreational catch, bag size and minimum landing size remain unchanged throughout simulated projection.
 #'      "AdjustAll" Specifies that bag size, minimum landing size, and season length should all be be adjusted to alter recreational catch.
 #'      "AdjustMixed" Randomly select to adjust between 0 and 3 input controls for each state & then randomly select that number of input controls from: bag size, minimum size, and season length to implement together in each state, this setting only functions if DecisionArea == "StatesIndependent".
 #'      "AdjustSpecific" Specifies that bag size, minimum landing size, and season length be fixed at specified settings for entire projection to test the settings of interest, requires an additional argument: adjustspecific.
-#' @param adjustspecific Optimal matrix required by InputMngmt = "AdjustSpecific" setting, contains specific settings for bag size, minimum landing size, and season length (rows labeled: "bagsize" "minsize" "seasonlength") by state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default.
+#' @param adjustspecific Optional matrix required by InputMngmtMethod = "AdjustSpecific" setting, contains specific settings for bag size, minimum landing size, and season length (rows labeled: "bagsize" "minsize" "seasonlength") by state (columns in the following order: MA, RI, CT, NY, NJ, DE, MD, VA, NC), no default.
 #'
 #' @return A list containing BagSize, MinSize, and SeasonLength matrices with updated management settings appended in the final row, a number for ComercialQuota and a vector of recreational quota named AreaQuota.
 #'
@@ -47,7 +47,7 @@ mngmtprocedure <- function(DecisionArea = NULL,
                            BagSize = NULL,
                            MinSize = NULL,
                            SeasonLength = NULL,
-                           InputMngmt = NULL, ...){
+                           InputMngmtMethod = NULL, ...){
   # Set decision area indexing
   decisionareaindex <- decisionarea(DecisionArea = DecisionArea, NStates = ncol(BagSize)) # decision area indexing remains consistent throughout simulation
 
@@ -66,7 +66,7 @@ mngmtprocedure <- function(DecisionArea = NULL,
                                 BagSize = BagSize,
                                 MinSize = MinSize,
                                 SeasonLength = MinSize,
-                                InputMngmt = InputMngmt, ...)
+                                InputMngmtMethod = InputMngmtMethod, ...)
 
   return(list(BagSize = controlOutput$BagSize, MinSize = controlOutput$MinSize, SeasonLength=controlOutput$SeasonLength, AreaQuota = quotaOutput$areaQuotas, CommercialQuota = quotaOutput$commercialQuota))
 }
@@ -91,7 +91,7 @@ mngmtprocedure <- function(DecisionArea = NULL,
 #                     BagSize = test_Bag,
 #                     MinSize = test_Min,
 #                     SeasonLength = test_Season,
-#                     InputMngmt = "AdjustBagSize") # ??? finish testing, tested already: "AdjustBagSize", "AdjustMinSize", "AdjustSeason"
+#                     InputMngmtMethod = "AdjustBagSize") # ??? finish testing, tested already: "AdjustBagSize", "AdjustMinSize", "AdjustSeason"
 #
 # # ??? test function
 # AreaIndex <- decisionarea(DecisionArea = "StatesIndependent", NStates = 9)
@@ -101,7 +101,7 @@ mngmtprocedure <- function(DecisionArea = NULL,
 #
 # # ??? test function
 # inputcontrols(areaindex = AreaIndex, CatchObs = test_Catch, areaquotas = store$areaQuotas, iYear=2, BagSize = test_Bag,
-#               MinSize = test_Min, SeasonLength = test_Season, InputMngmt = "AdjustSeason")
+#               MinSize = test_Min, SeasonLength = test_Season, InputMngmtMethod = "AdjustSeason")
 #
 #
 # ########## example data sets #####################
