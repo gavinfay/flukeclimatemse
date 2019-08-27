@@ -2,41 +2,60 @@
 
 # TO DO:
   # search ??? for updates with data, currently use HW4 examples for placeholders
+  # Update parameters & bounds
 
-#' @title Generate operating model data
+#' @title Perform stock assessment
 #'
 #' @description This function fits a delay-difference model to summer flounder catch, discards, and survey data to predict stock size.
 #'
-#' @param Rec_catch A vector containing recreational catch observations by state, no default.
-#' @param Rec_disc A vector containing recreational discards observations by state, no default.
-#' @param Com_catdisc A vector of combined commercial combined and discards observations by state, no default.
-#' @param Survey_obs A vector of survey abundance by state, no default. observations & std dev
-#' @param Survey_SD A vector of survey standard deviations by state, no default.
+#' @param Rec_catch A vector containing recreational catch observations summed over states, no default.
+#' @param Rec_disc A vector containing recreational discards observations summed over states, no default.
+#' @param Com_catdisc A vector of combined commercial catch and discards observations summed over states, no default.
+#' @param Survey_obs A vector of survey abundance combined across states, no default. observations & std dev
+#' @param Survey_SD A vector of survey standard deviations combined across states, no default.
+#' @param Recruits A vector of observed recruitment, no default.
+#'
+#' @useDynLib Fluke_Stock_Assessment # DO NOT MESS WITH THIS, it adds TMB template to the namespace file so it is automatically loaded as a DLL, see also: http://www.hep.by/gnu/r-patched/r-exts/R-exts_94.html
 #'
 #' @return A list of vectors containing biomass, recruitment, predicted recreational catch, predicted recreational discards, predicted combined commercial catch and discards, and survival.
 #'
 #' @family stock assessment model functions
 #'
 #' @examples
+#' # Example data
+#' Nyear <- 30 # UPDATE ??? # used here to specify changing length of catch/biomass timeseries, calculated in .cpp file
+#' # Fleet catch & discards
+#' fluke_rec_catch_obs <- read.csv("/Users/ahart2/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational catch
+#' fluke_rec_disc_obs <- read.csv("/Users/ahart2/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational discards
+#' fluke_com_catdisc_obs <- read.csv("/Users/ahart2/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Combined commercial catch and discards
+#' # Survey abundance observations and standard deviations
+#' fluke_survey_obs <- read.csv("/Users/ahart2/Downloads/HWK4.csv",skip=32, nrow=6, head=F)[,2]
+#' fluke_survey_SD <- read.csv("/Users/ahart2/Downloads/HWK4.csv",skip=32, nrow=6, head=F)[,3]
+#' fluke_Robs <- c(81955,	102427,	46954,	78263,	81397,	53988,	12474,	36963,	44019,	47704,	47264,	43928,	58403,	78348,	59520,	52374,	54518,	44100,	60551,	64979,	67860,	50131,	71270,	40634,	48153,	52646,	62460,	73747,	51331,	31296,	35187,	36719,	42271,	29833,	35853,	42415)# Recruitment timeseries (000s) from 66th Northeast Regional Stock Assessment Workshop Assessment Report (NEFSC 2019) Table A87, page 238, years 1982-2017.
 #'
+#' # Example
+#' stockassess(Rec_catch = fluke_rec_catch_obs, Rec_disc = fluke_rec_disc_obs, Com_catdisc = fluke_com_catdisc_obs, Survey_obs = fluke_survey_obs, Survey_SD = fluke_survey_SD, Recruits = fluke_Robs)
+
 
 stockassess <- function(Rec_catch = NULL,
                         Rec_disc = NULL,
                         Com_catdisc = NULL,
                         Survey_obs = NULL,
-                        Survey_SD = NULL){
-  # setwd("/Users/arhart/Downloads")
-  setwd("/Users/ahart2/Research/flukeclimatemse/R") # ??? this won't work in an R package, I need a way of referencing a cpp script or dll but I haven't figured out how to do this yet
+                        Survey_SD = NULL,
+                        Recruits = NULL){
 
-  require(TMB) # ??? this needs to be added to the list of dependent packages
+  # require(TMB) # Added to DESCRIPTION file dependencies
 
-  # Model data (non-estimated parameter values and survey fitting info)
+  # Specify number of years of data
+  Nyear <- length(Rec_catch)
+
+  # Model data (non-estimated parameter values and survey fitting info) # ??? update bounds to reflect summer flounder
   Survey_yr <- seq(1:length(Survey_obs)) # Could make this a parameter if survey has gaps (shorter than the catch timeseries)
   Survey_length <- length(Survey_obs)
-  W_dat <- 0.5
-  M_dat <- 0.25
-  Rho <- 0.995
-  Nproj <- 0 # project forward 1 year, not currently used
+  W_dat <- 0.5 # ??? update to reflect summer flounder weight gain parameter
+  M_dat <- 0.25 # Reflect 2018 Assessment
+  Rho <- 0.14 # 0.995 # update to reflect summer flounder von Bertalanffy k = growth rate coefficient = 0.14 combined across sexes from the 66th Northeast Regional Stock Assessment Workshop Assessment Report (NEFSC 2019) page 58
+  Nproj <- 0 # project forward 1 year, not currently used (needs further development if projection desired in future)
   Ctarget <- 0 # no fishing in projection, not currently used
 
   # Create list of data objects, names of list items must match DATA objects in Cpp code
@@ -47,6 +66,7 @@ stockassess <- function(Rec_catch = NULL,
                     survey_SD = Survey_SD,
                     survey_yr = Survey_yr,
                     survey_length = Survey_length,
+                    R_obs = Recruits,
                     w_dat = W_dat,
                     M_dat = M_dat,
                     rho = Rho,
@@ -54,18 +74,23 @@ stockassess <- function(Rec_catch = NULL,
                     Ctarget = Ctarget)
 
   # Create list of parameters and provide initial values (may include parameter vector, e.g. param_vec = rep(0,5))
-  ModelParameters <- list(dummy=0, Logith_steep = 0.25, Bzero = 1400, Fval = rep(-2.0, Nyear-1))
+  ModelParameters <- list(dummy=0,
+                          Bstartval = c(1400, 1400), # Vector of biomass estimated in the first 2 years rather than assuming population is unfished at start of timeseries
+                          Fstartval = 0.2, # Vector length 3 containing: Fstartval is estimated as the unobserved fishing rate for recreational catch, discard and commercial fishing in the year before observed timeseries begins
+                          Fvals = rep(-2.0, Nyear-1), # Vector of fishing mortalities for years 1 to Nyear -1 accounting for total recreational catch & discards and commercial catch & discards
+                          R_mean = 10000, # Mean recruitment
+                          sigmaR = 0.2, # Recruitment deviation
+                          R_randEffect = rep(0.001, Nyear)) # Recruitment random effect, normally distributed expect bounds between -2 and 2 so bounding at extremes of -5 ot 5 appropriate
 
-  # Compile Cpp code
-  # compile("/Users/ahart2/Research/flukeclimatemse/Fluke_StockAssessment.cpp") # file must be in working directory or provide full file path name
-  compile("Fluke_Stock_Assessment.cpp")
-  dyn.load(dynlib("Fluke_Stock_Assessment")) # ??? these two lines probably need to be adjusted so the cpp code can be referenced from this function properly, I just don't know how to do this yet
+  # Compile Cpp code, automatically done when package is loaded
+  # compile("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment.cpp") # file must be in working directory or provide full file path name
+  # # compile("Fluke_Stock_Assessment.cpp")
+  # # dyn.load(dynlib("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment")) # automatically loaded due to @useDynLib comment when package is built
 
-  # # Test code to check for minimization
+  # Test code to check for minimization
   # testmap<-list(Logith_steep=factor(NA),Bzero=factor(NA),Fval=rep(factor(NA),Nyear-1)) # only estimate dummy parameter, other parameters fixed at starting commercials
   # testmodel <- MakeADFun(data=ModelData, parameters=ModelParameters, DLL="Fluke_Stock_Assessment",silent=T,map=testmap)
   # xx <- testmodel$fn(testmodel$env$last.par)
-  #
 
 
   ##### Fit model to fluke #####
@@ -75,14 +100,15 @@ stockassess <- function(Rec_catch = NULL,
   # Construct objective function to optimize based on data, parameters, and Cpp code
   Model <- MakeADFun(data = ModelData, parameters = ModelParameters, DLL="Fluke_Stock_Assessment",silent=T,map = ModelMap) # silent=T silences a bunch of extra print statements
 
-  # Set bounds on different parameters, length of this vector must equal number of estimate parameters
-  lowbnd <- c(-100, 500,rep(-20,Nyear-1)) # rep( 0.1, 5) for a parameter vector of length 5 with lower bound 0.1, syntax for upper bound is the same
-  uppbnd <- c(100,1500,rep(-0.01,Nyear-1)) # no bounds for mapped params!!!!!!!!!!
+  # Set bounds on different parameters, length of this vector must equal number of estimate parameters # ??? update bounds to reflect summer flounder
+    # Bstartval, Fstartval, Fvals, R_mean, sigmaR, R_randEffect
+  lowbnd <- c(c(500, 500), c(0,0,0), rep(-20,Nyear-1), 1000, 0.001, rep(-5, Nyear)) # rep( 0.1, 5) for a parameter vector of length 5 with lower bound 0.1, syntax for upper bound is the same
+  uppbnd <- c(c(1500, 1500), c(0.999,0.999,0.999), rep(-0.01,Nyear-1), 15000, 1.0, rep(5, Nyear)) # no bounds for mapped params!!!!!!!!!!
 
   # Fit model to data using structure provided by MakeADFun() function call
-  # eval.max = max number evaluations of objective function
-  # iter.max = max number of iterations allowed
-  # rel.tol = relative tolerance
+    # eval.max = max number evaluations of objective function
+    # iter.max = max number of iterations allowed
+    # rel.tol = relative tolerance
   fit <- nlminb(Model$par, Model$fn, Model$gr, control=list(rel.tol=1e-12,eval.max=100000,iter.max=1000), lower=lowbnd,upper=uppbnd) # notice the inclusion of the lower and upper bound vectors
 
   ##### Fitted model results #####
@@ -100,47 +126,29 @@ stockassess <- function(Rec_catch = NULL,
   # Print objective (likelihood)
   # fit$objective
 
-  # Check for Hessian
+  # Check for Hessian ??? not positive definite probably a problem with Fstartval
   # VarCo <- solve(Model$he())
   # print(sqrt(diag(VarCo)))
 
   # Get reported info & predicted data
-  biomass <- Model$report()$biomass
+  biomass <- Model$report()$biomass # first two years set to the Bstartval estimated parameters
   recruitment <- Model$report()$recruitment
-  rec_catch_pred <- Model$report()$rec_catch_pred
-  rec_disc_pred <- Model$report()$rec_disc_pred
-  com_catdisc_pred <- Model$report()$com_catdisc_pred
+  catch_pred <- Model$report()$catch_pred
   survival <- Model$report()$survival
-  # Get parameter estimates
-  h_steep <- c(rep$value[1], rep$sd[1])
-  Bzero <- c(rep$value[2], rep$sd[2])
-  Fvals <- cbind(rep$value[3:length(rep$value)], rep$sd[3:length(rep$sd)])
+  # Get parameter estimates ??? check indexing
+  R_mean <- rep$value[4]
+  R_devs <- rep$value[7:(6+Nyear)]
+  Fvals <- cbind(rep$value[(7+Nyear):length(rep$value)], rep$sd[(7+Nyear):length(rep$value)])
   colnames(Fvals) <- c("Value", "SD")
+  # Other outputs to check
+  Bstartval <- cbind(rep$value[1:2], rep$sd[1:2])
+  Fstartval <- c(rep$value[3], rep$sd[3])
 
   return(list(biomass = biomass,
               recruitment = recruitment,
-              rec_catch_pred = rec_catch_pred,
-              rec_disc_pred = rec_disc_pred,
-              com_catdisc_pred = com_catdisc_pred,
+              catch_pred = catch_pred,
               survival = survival,
-              h_steep = h_steep,
-              Bzero = Bzero,
+              R_mean = R_mean,
+              R_devs = R_devs,
               Fvals = Fvals))
 }
-
-
-
-##### Example #####
-# Example data
-Nyear <- 30 # UPDATE ??? # used here to specify changing length of catch/biomass timeseries, calculated in .cpp file
-# Fleet catch & discards
-fluke_rec_catch_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational catch
-fluke_rec_disc_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Recreational discards
-fluke_com_catdisc_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv", skip=1, nrow=Nyear, head=F)[,2] # Combined commercial catch and discards
-# Survey abundance observations and standard deviations
-fluke_survey_obs <- read.csv("/Users/arhart/Downloads/HWK4.csv",skip=32, nrow=6, head=F)[,2]
-fluke_survey_SD <- read.csv("/Users/arhart/Downloads/HWK4.csv",skip=32, nrow=6, head=F)[,3]
-
-
-stockassess(Rec_catch = fluke_rec_catch_obs, Rec_disc = fluke_rec_disc_obs, Com_catdisc = fluke_com_catdisc_obs, Survey_obs = fluke_survey_obs, Survey_SD = fluke_survey_SD)
-
