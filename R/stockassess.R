@@ -152,3 +152,34 @@ stockassess <- function(Rec_catch = NULL,
               R_devs = R_devs,
               Fvals = Fvals))
 }
+
+
+###### Real data example
+# Recreational Catch
+TotRecCatDat <- as.matrix(read.csv("/Users/ahart2/Research/Summer_Flounder_MSE/Data/RecLandings.csv"))
+# Recreational Discards
+TotRecDiscDat <- as.matrix(read.csv("/Users/ahart2/Research/Summer_Flounder_MSE/Data/RecDiscards.csv"))
+# Combined commercial catch and discards
+ComCatDiscDat <- as.matrix(read.csv("/Users/ahart2/Research/Summer_Flounder_MSE/Data/CommercialCatDisc.csv"))
+
+# Recruitment timeseries (000s) from 66th Northeast Regional Stock Assessment Workshop Assessment Report (NEFSC 2019) Table A87, page 238, years 1982-2017.
+RData <- c(81955,	102427,	46954,	78263,	81397,	53988,	12474,	36963,	44019,	47704,	47264,	43928,	58403,	78348,	59520,	52374,	54518,	44100,	60551,	64979,	67860,	50131,	71270,	40634,	48153,	52646,	62460,	73747,	51331,	31296,	35187,	36719,	42271,	29833,	35853,	42415)
+RMean <- mean(RData)
+Rdevs <- c(exp(4.89E-01),	exp(7.12E-01), exp(-6.81E-02),	exp(4.43E-01),	exp(4.82E-01),	exp(7.17E-02),	exp(-1.39E+00),	exp(-3.07E-01),	exp(-1.32E-01),	exp(-5.21E-02),	exp(-6.13E-02),	exp(-1.34E-01),	exp(1.51E-01),	exp(4.45E-01),	exp(1.71E-01),	exp(4.30E-02),	exp(8.36E-02),	exp(-1.28E-01),	exp(1.90E-01),	exp(2.62E-01),	exp(3.06E-01),	exp(4.73E-03),	exp(3.59E-01),	exp(-2.01E-01),	exp(-2.63E-02),	exp(5.39E-02),	exp(2.23E-01),	exp(3.88E-01),	exp(2.63E-02),	exp(-4.70E-01),	exp(-3.55E-01),	exp(-3.12E-01),	exp(-1.79E-01),	exp(-5.34E-01),	exp(-3.68E-01),	exp(-1.83E-01)) # log values of recruitment deviations from assess_cor_file.csv
+# 2018 assessment abundance estimates at age from 66th Northeast Regional Stock Assessment Workshop Assessment Report (NEFSC 2019) Table A89, pg240 2018, years 1982-2017
+AbundData <- read.csv("/Users/ahart2/Research/Summer_Flounder_MSE/Data/SourceFiles/Abund_at_age_A89_NEFSC66AssessmentReport.csv", header=TRUE)
+AbundData <- AbundData[,2:9]
+for(icol in 1:ncol(AbundData)){
+  AbundData[,icol] <- as.numeric(gsub(",","",AbundData[,icol]))
+}
+colnames(AbundData) <- c("Age0", "Age1", "Age2", "Age3", "Age4", "Age5", "Age6", "Age7plus")
+
+tempRdevs <- c(rep(0.2,length(RData))) # placeholder, assessment estimated as normally distributed and summed to 1, maybe need proxy here???
+
+stockassess(Rec_catch = TotRecCatDat,
+            Rec_disc = TotRecDiscDat,
+            Com_catdisc = ComCatDiscDat,
+            Survey_obs = rowSums(AbundData),
+            Survey_SD = rep(0.2,36),
+            Recruits = RData)
+
