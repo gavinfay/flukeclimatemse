@@ -180,7 +180,8 @@ truestocksize(Catch = yrsCatch, # updated
               OMR_dev = 0,
               deterministic = "ON")
               #OMR_dev = Rdevs[length(Rdevs)]) # log values of recruitment deviations from assess_cor_file.csv
-### Run projection to unfished biomass
+
+### Run a projection to see how stock evolves with recruitment variability
 #Biomass <- NULL
 Biomass <- rep(0,51)
 N <- matrix(rep(0,51*length(M_age)),nrow=51)
@@ -198,6 +199,7 @@ for(iyear in 2:51){
                               meanR = RMean, # updated
                               #OMR_dev = Rdevs[length(Rdevs)],# updated
                               OMR_dev = Rdevs[iyear-1],# updated
+                              #deterministic = "ON")
                               deterministic = "OFF")
   #AbundData <- rbind(AbundData, projResult$new_Nabund)
   N[iyear,] <- projResult$new_Nabund
