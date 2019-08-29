@@ -82,20 +82,20 @@ inputcontrols <- function(areaindex = NULL,
   adjustments <- rep(NA, ncol(BagSize))
 
   # Calculate magnitude of necessary adjustment by comparing recent catch in each decision area to each quota
-  if(magnitudeSetting = "PropCatch"){ # Magnitude of adjustments are proportional to catch
+  if(magnitudeSetting == "PropCatch"){ # Magnitude of adjustments are proportional to catch
     for(iarea in 1:length(areaindex)){
       recentAreaCatch <- CatchObs[nrow(CatchObs), areaindex[[iarea]]]
       adjustmentRatio <- recentAreaCatch/areaquotas[iarea] # Compare recent catch to area quota ??? is this the comparison I want to make? currently can lead to unrealistic settings for management
       # ??? this is where I would need to change from proportional to not, currently proportional, this adjustment could be be calculated in other ways
 
       # All available input controls are adjusted by the same proportion
-      if(adjustmentRatio =< 1){ # catch < quota allow increasing adjustment OR catch = quota allow no adjustment
+      if(adjustmentRatio <= 1){ # catch < quota allow increasing adjustment OR catch = quota allow no adjustment
         adjustments[areaindex[[iarea]]] <- adjustmentRatio
       } else { # catch > quota require decreasing adjustment based on how far over quota, if catch greater than 2X quota this requires adjustments to no fishing ??? run this past Gavin & see last few lines before return
         adjustments[areaindex[[iarea]]] <- -1*(recentAreaCatch-areaquotas[iarea])/areaquotas[iarea]
       }
     }
-  } else if(magnitudeSetting = "Nonlinear"){ # Based on GAM fitted to ______# ??? need to fill this section in & provide link to code where GAM fitted, also document
+  } else if(magnitudeSetting == "Nonlinear"){ # Based on GAM fitted to ______# ??? need to fill this section in & provide link to code where GAM fitted, also document
 
   }
 

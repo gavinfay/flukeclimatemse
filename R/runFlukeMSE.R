@@ -54,8 +54,7 @@ RData <- c(81955,	102427,	46954,	78263,	81397,	53988,	12474,	36963,	44019,	47704
 #' @examples
 #'
 
-runFlukeMSE <- function(Nproj = 1,
-                        ){
+runFlukeMSE <- function(Nproj = 1){
   ##### Set up storage
   # Operating model output that does not update existing input data set
   StoreOMBiomass <- NULL # OM biomass timeseries
