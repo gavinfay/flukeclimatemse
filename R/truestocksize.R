@@ -144,11 +144,14 @@ truestocksize <- function(Catch = NULL,
 
 ###### Real data example
 # Recreational Catch
-TotRecCatDat <- as.matrix(read.csv("data/RecLandings.csv"))
+#TotRecCatDat <- as.matrix(read.csv("data/RecLandings.csv"))
+TotRecCatDat <- readRDS("data/RecLandings.rds")
 # Recreational Discards
-TotRecDiscDat <- as.matrix(read.csv("data/RecDiscards.csv"))
+#TotRecDiscDat <- as.matrix(read.csv("data/RecDiscards.csv"))
+TotRecDiscDat <- readRDS("data/RecDiscards.rds")
 # Combined commercial catch and discards
-ComCatDiscDat <- as.matrix(read.csv("data/CommercialCatDisc.csv"))
+#ComCatDiscDat <- as.matrix(read.csv("data/CommercialCatDisc.csv"))
+ComCatDiscDat <- readRDS("data/CommercialCatDisc.rds")
 #
 # # Recruitment timeseries (000s) from 66th Northeast Regional Stock Assessment Workshop Assessment Report (NEFSC 2019) Table A87, page 238, years 1982-2017.
 # RData <- c(81955,	102427,	46954,	78263,	81397,	53988,	12474,	36963,	44019,	47704,	47264,	43928,	58403,	78348,	59520,	52374,	54518,	44100,	60551,	64979,	67860,	50131,	71270,	40634,	48153,	52646,	62460,	73747,	51331,	31296,	35187,	36719,	42271,	29833,	35853,	42415)
