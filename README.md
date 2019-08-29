@@ -9,17 +9,17 @@
 ![](Fluke_MSE_Model_Overview.png)
 
 ## Functions
-`runFlukeMSE( )` runs the full MSE, stepping through each model component for specified number of projected years.
-+ `flukeOM( )` 
-  - `truestocksize( )`
-  - `dosurveys( )`
-  - `thermalhabitat( )`
+`runFlukeMSE( )` Runs the full MSE, stepping through each model component for specified number of projected years.
++ `flukeOM( )` Determine realized catch, true stock size, and survey index of abundance.
+  - `fishermenresponse( )` Calculates the realized catch based on fishermen response to management regulations.
+  - `truestocksize( )` Calculates the true stock size.
+  - `dosurveys( )` Calculates a survey index of abundance based on true stock size.
+  - `thermalhabitat( )` 
 + `stockassess( )`
 + `mngmtprocedure( )`
   - `decisionarea( )`
   - `allocatequota( )`
   - `inputcontrols( )`
-+ `fishermenresponse( )`
 
 ## Installation
 ```
