@@ -84,8 +84,7 @@ stockassess <- function(Rec_catch = NULL,
 
   # Compile Cpp code, automatically done when package is loaded
   # compile("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment.cpp") # file must be in working directory or provide full file path name
-  # # compile("Fluke_Stock_Assessment.cpp")
-  # # dyn.load(dynlib("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment")) # automatically loaded due to @useDynLib comment when package is built
+  # dyn.load(dynlib("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment")) # automatically loaded due to @useDynLib comment when package is built
 
   # Test code to check for minimization
   # testmap<-list(Logith_steep=factor(NA),Bzero=factor(NA),Fval=rep(factor(NA),Nyear-1)) # only estimate dummy parameter, other parameters fixed at starting commercials
@@ -182,4 +181,8 @@ stockassess(Rec_catch = TotRecCatDat,
             Survey_obs = rowSums(AbundData),
             Survey_SD = rep(0.2,36),
             Recruits = RData)
+
+# Test compilation of stock assessment
+compile("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment.cpp") # file must be in working directory or provide full file path name
+dyn.load(dynlib("/Users/ahart2/Research/flukeclimatemse/src/Fluke_Stock_Assessment")) # automatically loaded due to @useDynLib comment when package is built
 
